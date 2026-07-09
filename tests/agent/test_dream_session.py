@@ -1,6 +1,6 @@
 """Tests for Dream session key generation and rotation."""
-import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from nanobot.agent.memory import MemoryStore
 
@@ -13,16 +13,24 @@ class TestDreamSessionKey:
         datetime.strptime(ts_part, "%Y%m%d-%H%M%S")
 
     def test_unique_across_calls(self):
-        k1 = MemoryStore.dream_session_key()
-        time.sleep(1.1)
-        k2 = MemoryStore.dream_session_key()
+        now = datetime(2026, 5, 28, 10, 0, 0)
+        with patch("nanobot.agent.memory.datetime") as mock_dt:
+            mock_dt.now.side_effect = [now, now + timedelta(seconds=1)]
+            k1 = MemoryStore.dream_session_key()
+            k2 = MemoryStore.dream_session_key()
+
         assert k1 != k2
 
 
 class TestPruneDreamSessions:
     def test_keeps_n_most_recent(self, tmp_path):
+        import os
+        import time
+
         sessions_dir = tmp_path / "sessions"
         sessions_dir.mkdir()
+
+        base_time = time.time() - 100
 
         for i in range(15):
             key = f"dream:20260528-{100000 + i:06d}"
@@ -34,6 +42,7 @@ class TestPruneDreamSessions:
                 f'"updated_at": "2026-05-28T10:00:{i:02d}"}}\n',
                 encoding="utf-8",
             )
+            os.utime(path, (base_time + i, base_time + i))
 
         normal_path = sessions_dir / "telegram_123.jsonl"
         normal_path.write_text('{"_type": "metadata"}\n', encoding="utf-8")
@@ -62,3 +71,4 @@ class TestPruneDreamSessions:
         sessions_dir = tmp_path / "sessions"
         sessions_dir.mkdir()
         MemoryStore.prune_dream_sessions(sessions_dir, keep=10)
+        assert list(sessions_dir.iterdir()) == []

@@ -5,6 +5,7 @@
 /* Design tokens — HSL form, sourced from shadcn/ui's "neutral" palette. */
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 240 3% 12%;
     --card: 0 0% 100%;
@@ -30,9 +31,12 @@
     --sidebar-accent: 0 0% 95.8%;
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 0 0% 89.8%;
+    --scrollbar-thumb: hsl(var(--muted-foreground) / 0.26);
+    --scrollbar-thumb-hover: hsl(var(--muted-foreground) / 0.42);
   }
 
   .dark {
+    color-scheme: dark;
     --background: 0 0% 10%;
     --foreground: 240 4% 96%;
     --card: 0 0% 12%;
@@ -57,6 +61,8 @@
     --sidebar-accent: 0 0% 15.5%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 18%;
+    --scrollbar-thumb: hsl(var(--muted-foreground) / 0.28);
+    --scrollbar-thumb-hover: hsl(var(--muted-foreground) / 0.44);
   }
 }
 
@@ -73,6 +79,33 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  * {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   ::selection {
@@ -121,10 +154,13 @@
   }
 
   .host-sidebar-glass {
+    background: hsl(var(--sidebar) / 0.94);
+    -webkit-backdrop-filter: saturate(145%) blur(18px);
+    backdrop-filter: saturate(145%) blur(18px);
     box-shadow:
-      inset -1px 0 0 hsl(var(--border) / 0.36),
-      inset 1px 0 0 hsl(var(--background) / 0.34),
-      18px 0 44px -42px rgb(0 0 0 / 0.42);
+      inset -1px 0 0 hsl(var(--border) / 0.32),
+      inset 1px 0 0 hsl(var(--background) / 0.52),
+      14px 0 32px -30px rgb(0 0 0 / 0.22);
   }
 
   .dark .host-window-shell,
@@ -135,10 +171,11 @@
   }
 
   .dark .host-sidebar-glass {
+    background: hsl(var(--sidebar) / 0.96);
     box-shadow:
       inset -1px 0 0 hsl(var(--border) / 0.42),
       inset 1px 0 0 hsl(var(--foreground) / 0.05),
-      18px 0 46px -42px rgb(0 0 0 / 0.72);
+      14px 0 34px -30px rgb(0 0 0 / 0.62);
   }
 
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -485,5 +522,72 @@
   }
   .scrollbar-track-transparent::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  /*
+   * Mobile responsive safety net — keep the chat viewport + composer inside a
+   * narrow viewport (see #4693). These are containment rules: long markdown
+   * (URLs, branch names, file paths, code, tables) wraps or scrolls inside its
+   * own box instead of forcing the whole column — and thus the page — wider
+   * than 100vw. Desktop layout is unchanged; the rules only engage when content
+   * would otherwise overflow. Fenced code blocks keep their own internal
+   * horizontal scroll (CodeBlock and the markdown <pre> wrappers already set
+   * overflow-x: auto), so clipping the thread column horizontally is safe.
+   */
+
+  /* Prose container: allow it to shrink within its column and break long words
+     so long URLs / paths never stretch the conversation wider than 100vw. */
+  .markdown-content {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+  }
+
+  /* Long links and inline code break rather than stretch the column. */
+  .markdown-content a,
+  .markdown-content code {
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+  }
+
+  /* Fenced / pre blocks scroll inside their own box, never the page. */
+  .markdown-content pre,
+  .not-prose pre {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Wide markdown tables scroll horizontally within the conversation column.
+     Tables are wrapped in an overflow-x:auto <div> by the markdown renderer's
+     custom `table` component (see MarkdownTextRenderer); min-w-max on the
+     <table> keeps natural column widths so it scrolls instead of shrinking. */
+
+  /* Clip any residual horizontal bleed at the thread column edge. Vertical
+     scrolling and internal code-block scroll are unaffected. */
+  .thread-viewport-scrollbar {
+    overflow-x: hidden;
+  }
+
+  .thread-viewport {
+    container-name: thread-viewport;
+    container-type: inline-size;
+  }
+
+  .thread-prompt-rail {
+    display: none;
+    left: 1.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .thread-prompt-rail {
+      display: block;
+    }
+  }
+
+  @container thread-viewport (max-width: 59rem) {
+    .thread-prompt-rail {
+      display: none;
+    }
   }
 }
